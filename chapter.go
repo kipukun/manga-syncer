@@ -35,7 +35,6 @@ const diffTemplate = `
 {{range .Chapters}}
 	<p><b>{{.Attributes.PublishAt}}<b>: <i>{{.Attributes.Title}}</i></p>
 {{end}}
-{{ if .Chapters }}<hr>{{end}}
 {{.Before}}
 </body>
 </html>
@@ -210,7 +209,7 @@ func chapterWorker(ch <-chan chapterJob, wg *sync.WaitGroup) {
 		downloadChapter(c)
 		chapters = append(chapters, c.chapter)
 	}
-	if conf.ExportChanges != "" {
+	if conf.ExportChanges != "" && len(chapters) != 0 {
 		logDiff(chapters)
 	}
 }
