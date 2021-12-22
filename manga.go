@@ -19,6 +19,12 @@ const mangaURL = "https://api.mangadex.org/manga/%s"
 const chapterURL = "https://api.mangadex.org/chapter/%s"
 const scanlationGroupsURL = "https://api.mangadex.org/group?limit=100"
 
+type singleChapterResponse struct {
+	Result   string       `json:"result"`
+	Response string       `json:"response"`
+	Data     mangaChapter `json:"data"`
+}
+
 type mangaChapter struct {
 	ID         string `json:"id"`
 	Type       string `json:"type"`
@@ -56,33 +62,15 @@ type mangaMetadata struct {
 		ID         string `json:"id"`
 		Type       string `json:"type"`
 		Attributes struct {
-			Title     map[string]string `json:"title"`
-			AltTitles []struct {
-				En string `json:"en"`
-			} `json:"altTitles"`
-			Description struct {
-				En string `json:"en"`
-			} `json:"description"`
-			IsLocked bool `json:"isLocked"`
-			Links    struct {
-				Al    string `json:"al"`
-				Ap    string `json:"ap"`
-				Bw    string `json:"bw"`
-				Kt    string `json:"kt"`
-				Mu    string `json:"mu"`
-				Amz   string `json:"amz"`
-				Ebj   string `json:"ebj"`
-				Mal   string `json:"mal"`
-				Raw   string `json:"raw"`
-				Engtl string `json:"engtl"`
-			} `json:"links"`
-			OriginalLanguage       string      `json:"originalLanguage"`
-			LastVolume             interface{} `json:"lastVolume"`
-			LastChapter            string      `json:"lastChapter"`
-			PublicationDemographic string      `json:"publicationDemographic"`
-			Status                 string      `json:"status"`
-			Year                   interface{} `json:"year"`
-			ContentRating          string      `json:"contentRating"`
+			Title                  map[string]string `json:"title"`
+			IsLocked               bool              `json:"isLocked"`
+			OriginalLanguage       string            `json:"originalLanguage"`
+			LastVolume             interface{}       `json:"lastVolume"`
+			LastChapter            string            `json:"lastChapter"`
+			PublicationDemographic string            `json:"publicationDemographic"`
+			Status                 string            `json:"status"`
+			Year                   interface{}       `json:"year"`
+			ContentRating          string            `json:"contentRating"`
 			Tags                   []struct {
 				ID         string `json:"id"`
 				Type       string `json:"type"`
@@ -144,26 +132,26 @@ type scanlationGroups struct {
 }
 
 func getSingleChapter(cid string) (mangaChapter, error) {
-	var c mangaChapter
+	var c singleChapterResponse
 	resp, err := client.Get(fmt.Sprintf(chapterURL, cid))
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Errorln("Chapter "+cid, resp.Request.URL, err)
-		return c, err
+		return c.Data, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		log.Errorln("Chapter "+cid, resp.Request.URL, errors.New(resp.Status), string(body))
-		return c, err
+		return c.Data, err
 	}
 
 	err = json.Unmarshal(body, &c)
 	if err != nil {
 		log.Errorln("Chapter "+cid, resp.Request.URL, err, string(body))
-		return c, err
+		return c.Data, err
 	}
-	return c, nil
+	return c.Data, nil
 }
 
 func getMangaIDForChapter(cid string) (string, error) {
@@ -391,7 +379,7 @@ func getAllGroups(chapters []mangaChapter) (map[string]string, error) {
 func syncManga(mid string, ch chan<- chapterJob) {
 	resp, err := client.Get(fmt.Sprintf(mangaURL, mid))
 	if err != nil {
-		log.Errorln("Manga "+mid, resp.Request.URL, err)
+		log.Errorln("Manga "+mid, fmt.Sprintf(mangaURL, mid), err)
 		return
 	}
 	body, err := ioutil.ReadAll(resp.Body)
