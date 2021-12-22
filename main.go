@@ -30,6 +30,7 @@ type config struct {
 	AllowQuestionMarks bool
 	RenameManga        bool
 	BlockedGroups      []string
+	ExportChanges      string
 }
 
 var conf config

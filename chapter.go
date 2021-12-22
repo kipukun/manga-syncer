@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"io"
 	"io/ioutil"
 	"os"
@@ -25,6 +27,19 @@ type atHomeResponse struct {
 }
 
 const atHomeServerURL = "https://api.mangadex.org/at-home/server/%s"
+
+const diffTemplate = `
+<html>
+<head>manga-syncer</head>
+<body>
+{{range .Chapters}}
+	<p><b>{{.Attributes.PublishAt}}<b>: <i>{{.Attributes.Title}}</i></p>
+{{end}}
+{{ if .Chapters }}<hr>{{end}}
+{{.Before}}
+</body>
+</html>
+`
 
 // This one has a hard 1/s limit, so only consume half of it
 var atHomeTicker = time.NewTicker(time.Second * 2)
@@ -51,6 +66,37 @@ func downloadImage(url string, file string) error {
 		return err
 	}
 	return nil
+}
+
+func logDiff(chs []mangaChapter) {
+	before, err := os.ReadFile(conf.ExportChanges)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		log.Errorln("Exporting diff", err)
+		return
+	}
+	d := struct {
+		Chapters []mangaChapter
+		Before   string
+	}{
+		chs,
+		string(before),
+	}
+	t, err := template.New("manga-syncer").Parse(diffTemplate)
+	if err != nil {
+		log.Errorln("exporting diff", err)
+		return
+	}
+	var buf bytes.Buffer
+	err = t.Execute(&buf, d)
+	if err != nil {
+		log.Errorln("exporting diff", err)
+		return
+	}
+	err = os.WriteFile(conf.ExportChanges, buf.Bytes(), 0666)
+	if err != nil {
+		log.Errorln("exporting diff", err)
+		return
+	}
 }
 
 func downloadChapter(c chapterJob) {
@@ -152,6 +198,7 @@ func downloadChapter(c chapterJob) {
 
 func chapterWorker(ch <-chan chapterJob, wg *sync.WaitGroup) {
 	defer wg.Done()
+	var chapters []mangaChapter
 
 	for c := range ch {
 		select {
@@ -161,5 +208,9 @@ func chapterWorker(ch <-chan chapterJob, wg *sync.WaitGroup) {
 		}
 
 		downloadChapter(c)
+		chapters = append(chapters, c.chapter)
+	}
+	if conf.ExportChanges != "" {
+		logDiff(chapters)
 	}
 }
