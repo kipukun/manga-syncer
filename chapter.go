@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"text/template"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -29,15 +29,13 @@ type atHomeResponse struct {
 const atHomeServerURL = "https://api.mangadex.org/at-home/server/%s"
 
 const diffTemplate = `
-<html>
-<head>manga-syncer</head>
-<body>
+manga-syncer
+=======================
 {{range .Chapters}}
-	<p><b>{{.Attributes.PublishAt}}<b>: <i>{{.Attributes.Title}}</i></p>
+	{{.Attributes.PublishAt}}: {{.Attributes.Title}}
 {{end}}
+=======================
 {{.Before}}
-</body>
-</html>
 `
 
 // This one has a hard 1/s limit, so only consume half of it
